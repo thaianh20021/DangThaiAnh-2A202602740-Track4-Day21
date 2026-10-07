@@ -1,4 +1,4 @@
-# Báo cáo Day 6: [ĐIỀN tên đề tài ngắn]
+# Báo cáo Day 6: Kiểm tra chất lượng Calibration LiDAR-Camera và độ nhạy với Extrinsic Drift
 
 > Thay **mọi** ô có chữ ĐIỀN nằm trong ngoặc vuông bằng nội dung của bạn, xoá luôn cả dấu ngoặc vuông. Lệnh `python tools/check_submission.py` sẽ báo FAIL nếu còn sót bất kỳ chỗ nào.
 
@@ -6,9 +6,9 @@
 - **MSSV:** 2A202602740
 - **Lớp:** H209
 - **Link repo:** https://github.com/thaianh20021/DangThaiAnh-2A202602740-Track4-Day21
-- **Topic:** [ĐIỀN một chữ cái A/B/C/D/E/F] — [ĐIỀN tên topic]
-- **Dataset:** [ĐIỀN một hoặc nhiều trong: data/synthetic, data/kitti_mini, data/nuscenes_mini_subset, log riêng]
-- **Các frame đã dùng:** [ĐIỀN danh sách frame id, ví dụ 000011, 000049 hoặc scene-0103_010]
+- **Topic:** A — LiDAR-camera projection QA
+- **Dataset:** data/kitti_mini, data/nuscenes_mini_subset, data/synthetic
+- **Các frame đã dùng:** 000011, 000021, 000049 (KITTI); scene-0103_010 (nuScenes); 000000 (synthetic)
 
 > Hãy viết ngắn: mỗi mục từ 3 đến 8 dòng, ưu tiên số liệu và hình ảnh.
 
@@ -16,7 +16,7 @@
 
 Một câu khẳng định kỹ thuật có thể kiểm chứng. Ví dụ: *"Lệch yaw 1° làm 12% điểm LiDAR rơi ra khỏi vật thể ở 30 m, phát hiện được bằng edge-alignment score với ngưỡng X."*
 
-[ĐIỀN]
+Độ lệch góc xoay extrinsic yaw từ 1.0° trở lên khiến tỷ lệ điểm LiDAR rơi đúng vào bounding box 2D của xe giảm hơn 35% ở khoảng cách > 25 m, đồng thời làm tâm cụm điểm chiếu lệch hơn 15 pixel trên ảnh, làm suy giảm nghiêm trọng độ tin cậy của thuật toán Sensor Fusion.
 
 ## 2. Evidence
 

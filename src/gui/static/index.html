@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiDAR-Camera Projection QA Studio | Day 6 Lab</title>
+  <meta name="description" content="Hệ thống trực quan hoá và mô phỏng tương tác độ nhạy của phép chiếu LiDAR-Camera trước các sai lệch Extrinsic Calibration Drift.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header / Navigation Bar -->
+  <header class="navbar" id="main-header">
+    <div class="brand">
+      <div class="logo-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M3 12h3m12 0h3M12 3v3m0 12v3"></path>
+          <circle cx="12" cy="12" r="9" stroke-dasharray="4 4"></circle>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>LiDAR-Camera Projection QA</h1>
+        <span class="sub-brand">Autonomous Driving Calibration QA Studio &bull; Day 6 Lab</span>
+      </div>
+    </div>
+
+    <!-- Student Badge & Quick Stats -->
+    <div class="header-meta">
+      <div class="badge-student">
+        <span class="badge-dot"></span>
+        <span class="student-name">Đặng Thái Anh</span>
+        <span class="student-id">2A202602740</span>
+        <span class="student-class">H209</span>
+      </div>
+      <div class="status-indicator" id="header-status-pill">
+        <span class="status-pulse" id="status-pulse"></span>
+        <span id="status-text">OPTIMAL</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="dashboard-layout">
+    <!-- Left Sidebar: Controls & Calibration Sliders -->
+    <aside class="control-sidebar" id="control-panel">
+      <!-- Section: Dataset & Frame Selector -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          </svg>
+          <h3>Dữ liệu & Khung hình</h3>
+        </div>
+        <div class="input-grid">
+          <div class="form-group">
+            <label for="dataset-select">Tập dữ liệu</label>
+            <select id="dataset-select" class="custom-select">
+              <option value="kitti" selected>KITTI 3D (64-beam)</option>
+              <option value="nusc">nuScenes (32-beam)</option>
+              <option value="synthetic">Synthetic (Mẫu)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="frame-select">Mã Frame</label>
+            <select id="frame-select" class="custom-select">
+              <option value="000011" selected>000011 (Đa vật thể)</option>
+              <option value="000021">000021 (Đường phố)</option>
+              <option value="000001">000001</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Presets -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <h3>Kịch bản mẫu (Presets)</h3>
+        </div>
+        <div class="preset-buttons">
+          <button class="btn-preset active" data-yaw="0" data-pitch="0" data-roll="0" data-tx="0" data-ty="0" data-tz="0">
+            Baseline (0.0&deg;)
+          </button>
+          <button class="btn-preset" data-yaw="0.5" data-pitch="0" data-roll="0" data-tx="0" data-ty="0" data-tz="0">
+            Lệch nhẹ (Yaw +0.5&deg;)
+          </button>
+          <button class="btn-preset" data-yaw="1.0" data-pitch="0" data-roll="0" data-tx="0" data-ty="0" data-tz="0">
+            Cảnh báo (Yaw +1.0&deg;)
+          </button>
+          <button class="btn-preset danger" data-yaw="2.0" data-pitch="0" data-roll="0" data-tx="0" data-ty="0" data-tz="0">
+            Failure (Yaw +2.0&deg;)
+          </button>
+          <button class="btn-preset" data-yaw="0" data-pitch="1.5" data-roll="0" data-tx="0" data-ty="0" data-tz="0">
+            Pitch trượt đứng (+1.5&deg;)
+          </button>
+          <button class="btn-preset" data-yaw="0" data-pitch="0" data-roll="0" data-tx="0" data-ty="0.1" data-tz="0">
+            Xóc gờ (+10cm ty)
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Calibration Perturbation Sliders -->
+      <div class="panel-card">
+        <div class="card-title justify-between">
+          <div class="flex-align">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <h3>Tinh chỉnh Extrinsic</h3>
+          </div>
+          <button class="btn-reset" id="btn-reset-sliders" title="Đặt lại góc về 0">Reset</button>
+        </div>
+
+        <!-- Yaw Slider -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Yaw (Góc xoay ngang &Delta;&theta;<sub>z</sub>)</span>
+            <span class="slider-value" id="val-yaw">0.0&deg;</span>
+          </div>
+          <input type="range" id="slider-yaw" min="-3.0" max="3.0" step="0.1" value="0.0" class="custom-range range-accent">
+          <div class="slider-ticks">
+            <span>-3.0&deg;</span><span>0.0&deg;</span><span>+3.0&deg;</span>
+          </div>
+        </div>
+
+        <!-- Pitch Slider -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Pitch (Góc xoay đứng &Delta;&theta;<sub>y</sub>)</span>
+            <span class="slider-value" id="val-pitch">0.0&deg;</span>
+          </div>
+          <input type="range" id="slider-pitch" min="-2.0" max="2.0" step="0.1" value="0.0" class="custom-range">
+          <div class="slider-ticks">
+            <span>-2.0&deg;</span><span>0.0&deg;</span><span>+2.0&deg;</span>
+          </div>
+        </div>
+
+        <!-- Roll Slider -->
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">Roll (Góc nghiêng quang học &Delta;&theta;<sub>x</sub>)</span>
+            <span class="slider-value" id="val-roll">0.0&deg;</span>
+          </div>
+          <input type="range" id="slider-roll" min="-2.0" max="2.0" step="0.1" value="0.0" class="custom-range">
+          <div class="slider-ticks">
+            <span>-2.0&deg;</span><span>0.0&deg;</span><span>+2.0&deg;</span>
+          </div>
+        </div>
+
+        <!-- Translation Group Accordion -->
+        <details class="advanced-details">
+          <summary>Tịnh tiến (Translation &Delta;t<sub>xyz</sub>)</summary>
+          <div class="advanced-sliders">
+            <div class="slider-group">
+              <div class="slider-header">
+                <span class="slider-label">&Delta;t<sub>y</sub> (Trục ngang / cm)</span>
+                <span class="slider-value" id="val-ty">0 cm</span>
+              </div>
+              <input type="range" id="slider-ty" min="-20" max="20" step="1" value="0" class="custom-range">
+            </div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span class="slider-label">&Delta;t<sub>z</sub> (Trục cao / cm)</span>
+                <span class="slider-value" id="val-tz">0 cm</span>
+              </div>
+              <input type="range" id="slider-tz" min="-20" max="20" step="1" value="0" class="custom-range">
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Section: Display Settings -->
+      <div class="panel-card">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <h3>Tuỳ chọn hiển thị</h3>
+        </div>
+        <div class="toggle-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="chk-show-boxes" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-text">2D Bounding Boxes</span>
+          </label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="chk-show-points" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-text">Điểm LiDAR (Depth JET)</span>
+          </label>
+        </div>
+        <div class="slider-group mt-2">
+          <div class="slider-header">
+            <span class="slider-label">Cự ly hiển thị tối đa (Max Depth)</span>
+            <span class="slider-value" id="val-max-depth">50m</span>
+          </div>
+          <input type="range" id="slider-max-depth" min="20" max="80" step="5" value="50" class="custom-range">
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center & Right: Interactive Viewport and Analytics -->
+    <main class="main-viewport">
+      <!-- Live Telemetry Ribbon -->
+      <section class="telemetry-ribbon" id="telemetry-bar">
+        <div class="metric-card" id="card-shift">
+          <div class="metric-meta">
+            <span class="metric-title">Độ lệch Pixel TB</span>
+            <span class="metric-badge" id="badge-shift-level">0.0 px</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-val" id="metric-mean-shift">0.00</span>
+            <span class="metric-unit">px</span>
+          </div>
+          <div class="metric-sub">P95: <span id="metric-p95-shift">0.0</span> px &bull; Max: <span id="metric-max-shift">0.0</span> px</div>
+        </div>
+
+        <div class="metric-card" id="card-retention">
+          <div class="metric-meta">
+            <span class="metric-title">Tỷ lệ lưu giữ điểm (All)</span>
+            <span class="metric-badge badge-green" id="badge-ret-level">100%</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-val text-green" id="metric-retention-all">100.0</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-sub">Điểm thuộc object còn bám box</div>
+        </div>
+
+        <div class="metric-card" id="card-near-far">
+          <div class="metric-meta">
+            <span class="metric-title">Cự ly Gần vs Xa</span>
+            <span class="metric-badge">Z &gt; 20m vs &le; 15m</span>
+          </div>
+          <div class="dual-val-row">
+            <div>
+              <span class="dual-label">Gần (&le;15m):</span>
+              <span class="dual-num text-cyan" id="metric-ret-near">100%</span>
+            </div>
+            <div>
+              <span class="dual-label">Xa (&gt;20m):</span>
+              <span class="dual-num text-amber" id="metric-ret-far">100%</span>
+            </div>
+          </div>
+          <div class="metric-sub">Vật xa mất điểm trước ($1/Z$)</div>
+        </div>
+
+        <div class="metric-card" id="card-edge">
+          <div class="metric-meta">
+            <span class="metric-title">Edge Alignment</span>
+            <span class="metric-badge">Canny Edge Map</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-val" id="metric-edge-score">0.3582</span>
+            <span class="metric-unit">score</span>
+          </div>
+          <div class="metric-sub">Độ bám biên ảnh camera RGB</div>
+        </div>
+      </section>
+
+      <!-- Alert Banner -->
+      <div class="alert-banner alert-optimal" id="system-alert-banner">
+        <div class="alert-icon" id="alert-icon">&#x2714;</div>
+        <div class="alert-text">
+          <strong id="alert-headline">Hệ thống Calibration tối ưu:</strong>
+          <span id="alert-detail">Mọi điểm LiDAR khớp chính xác với biên xe, người đi bộ và mặt đường.</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="viewport-tabs" id="view-tabs">
+        <button class="tab-btn active" data-tab="tab-viewport">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Giao diện chiếu LiDAR (Live Overlay)
+        </button>
+        <button class="tab-btn" data-tab="tab-objects">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+          Chi tiết từng vật thể (Object Inspector)
+        </button>
+        <button class="tab-btn" data-tab="tab-analytics">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          Biểu đồ Benchmark (Analytics)
+        </button>
+        <button class="tab-btn" data-tab="tab-theory">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          Giải thích Toán học & Failure Case
+        </button>
+      </nav>
+
+      <!-- Tab Content 1: Live Viewport -->
+      <div class="tab-pane active" id="tab-viewport">
+        <div class="image-viewer-card">
+          <div class="viewer-toolbar">
+            <span class="toolbar-title" id="viewport-label">Ảnh Camera Rectified + Lớp chiếu LiDAR (P2 &bull; T_cam_velo)</span>
+            <div class="toolbar-actions">
+              <button class="btn-tool" id="btn-toggle-diff" title="Bật/tắt so sánh trước-sau">So sánh với Baseline (0&deg;)</button>
+              <button class="btn-tool" id="btn-fullscreen" title="Phóng to">Full View</button>
+            </div>
+          </div>
+          <div class="image-stage" id="image-stage">
+            <div class="loading-overlay" id="loading-spinner">
+              <div class="spinner"></div>
+              <span>Đang tính toán phép chiếu...</span>
+            </div>
+            <img id="live-canvas-img" src="" alt="LiDAR camera overlay live projection">
+          </div>
+          <!-- Color Legend -->
+          <div class="depth-legend">
+            <span>Cự ly (Depth):</span>
+            <span class="legend-near">0m (Đỏ/Gần)</span>
+            <div class="legend-bar"></div>
+            <span class="legend-far">50m+ (Xanh/Xa)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Object Inspector -->
+      <div class="tab-pane" id="tab-objects">
+        <div class="objects-grid" id="objects-cards-container">
+          <!-- Dynamic cards injected via JS -->
+        </div>
+      </div>
+
+      <!-- Tab Content 3: Benchmark Analytics -->
+      <div class="tab-pane" id="tab-analytics">
+        <div class="charts-grid">
+          <div class="chart-box">
+            <h4>1. Point Retention vs Yaw Drift (Gần vs Xa)</h4>
+            <div class="chart-wrapper">
+              <canvas id="chart-retention"></canvas>
+            </div>
+          </div>
+          <div class="chart-box">
+            <h4>2. Mean Pixel Shift theo trục (Yaw vs Pitch vs Roll)</h4>
+            <div class="chart-wrapper">
+              <canvas id="chart-shift"></canvas>
+            </div>
+          </div>
+          <div class="chart-box">
+            <h4>3. So sánh Cross-Dataset: KITTI (64 beam) vs nuScenes (32 beam)</h4>
+            <div class="chart-wrapper">
+              <canvas id="chart-cross"></canvas>
+            </div>
+          </div>
+          <div class="chart-box">
+            <h4>4. Edge Alignment Score theo độ lệch Yaw</h4>
+            <div class="chart-wrapper">
+              <canvas id="chart-edge"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 4: Mathematical Theory & Failure Case -->
+      <div class="tab-pane" id="tab-theory">
+        <div class="theory-card">
+          <h3>Bản chất Toán học & Phân tích Failure Case (Geometry Layer)</h3>
+          
+          <div class="formula-box">
+            <h4>1. Chuỗi biến đổi hình học (LiDAR &to; Camera Pixel):</h4>
+            <div class="math-line">
+              $$s \cdot [u, v, 1]^T = P_2 \cdot R_0^{rect} \cdot Tr_{velo\_to\_cam} \cdot [X, Y, Z, 1]^T$$
+            </div>
+            <p>Trong đó ma trận $T_{cam\_velo} = R_0 \cdot Tr$ đưa điểm từ toạ độ Velodyne sang Rectified Camera Frame. Phép chia $s = Z_{cam}$ thu được toạ độ pixel $u = f_x \frac{X}{Z} + c_x$.</p>
+          </div>
+
+          <div class="formula-box">
+            <h4>2. Tại sao vật ở xa luôn rớt điểm (Failure) trước vật ở gần?</h4>
+            <p>Khi góc extrinsic xoay lệch một lượng $\Delta \theta$ (ví dụ Yaw $\Delta \theta = 1.0^\circ = 0.0175\text{ rad}$):</p>
+            <ul>
+              <li><strong>Độ trượt pixel trên ảnh:</strong> $\Delta u \approx f_x \cdot \Delta \theta \approx 721 \times 0.0175 \approx 12.6\text{ px}$ (đối với KITTI, gần như hằng số không phụ thuộc vào cự ly $Z$).</li>
+              <li><strong>Kích thước pixel của Bounding Box:</strong> Chiều rộng pixel của vật thể tỉ lệ nghịch với cự ly: $W_{px} \approx f_x \frac{W_{mét}}{Z}$.</li>
+              <li><strong>Tỉ số trượt so với bề rộng box:</strong>
+                <div class="math-highlight">$$\frac{\Delta u}{W_{px}} \approx \frac{Z \cdot \Delta \theta}{W_{mét}}$$</div>
+              </li>
+            </ul>
+            <div class="case-comparison-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Đối tượng</th>
+                    <th>Cự ly ($Z$)</th>
+                    <th>Bề rộng 2D box ($W_{px}$)</th>
+                    <th>Độ trượt khi Yaw +2.0&deg;</th>
+                    <th>Kết quả Retention</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Xe ô tô gần (Car)</td>
+                    <td>6.8 m</td>
+                    <td>85 px</td>
+                    <td>30.7 px</td>
+                    <td><span class="tag-good">52.5% điểm còn lại</span></td>
+                  </tr>
+                  <tr>
+                    <td>Xe ô tô xa (Car)</td>
+                    <td>27.2 m</td>
+                    <td>48 px</td>
+                    <td>30.7 px</td>
+                    <td><span class="tag-warn">60.5% điểm còn lại</span></td>
+                  </tr>
+                  <tr>
+                    <td>Người đi bộ xa (Pedestrian)</td>
+                    <td>34.2 m</td>
+                    <td>15.3 px</td>
+                    <td>30.7 px (&gt; 15.3px!)</td>
+                    <td><span class="tag-fail">0.0% (Trượt hoàn toàn ra ngoài!)</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="formula-box">
+            <h4>3. Khuyến nghị triển khai ADAS / Robot thật:</h4>
+            <p>&bull; <strong>Online Calibration QA:</strong> Cần tính toán chỉ số <em>Point-in-Box Retention</em> hoặc <em>Edge Alignment</em> định kỳ (mỗi 5-10s) để cảnh báo tài xế hoặc dừng xe an toàn khi sensor bracket bị va quẹt.</p>
+            <p>&bull; <strong>Ngưỡng ngắt an toàn:</strong> Cảnh báo khi độ trượt trung bình vượt ngưỡng <strong>8 pixel</strong> liên tục trong 3 frame.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
